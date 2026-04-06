@@ -1,0 +1,49 @@
+{
+  "name": "tryaii-dre",
+  "version": "0.1.0",
+  "description": "Embedding-based AI Model Router - understands your prompt semantically and routes to the best model",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "src/registry/presets/*.json",
+    "src/centroids/data/*.json"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src/ --ext .ts"
+  },
+  "keywords": [
+    "ai",
+    "model-routing",
+    "embeddings",
+    "llm",
+    "benchmark"
+  ],
+  "author": "TryAii",
+  "license": "Apache-2.0",
+  "dependencies": {},
+  "optionalDependencies": {
+    "@xenova/transformers": "^2.17.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.2.0",
+    "eslint": "^8.56.0",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

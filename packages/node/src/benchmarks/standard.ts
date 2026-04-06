@@ -1,0 +1,117 @@
+/**
+ * Standard benchmark definitions -- the 12 benchmarks shipped with TryAii-DRE.
+ */
+
+import { NormalizationRange } from '../scoring/benchmarks.js';
+import type { BenchmarkDefinition } from './registry.js';
+
+export const STANDARD_BENCHMARKS: BenchmarkDefinition[] = [
+  {
+    name: 'MMLU',
+    description: 'Academic knowledge across 57 subjects',
+    trainingQueries: [], // Loaded from trainingQueries.json at runtime
+    normalization: new NormalizationRange(25, 95),
+    broadCategory: 'EDUCATIONAL',
+    subcategories: ['ACADEMIC_INSTRUCTION', 'RESEARCH_METHODOLOGY'],
+    metadata: {},
+  },
+  {
+    name: 'HellaSwag',
+    description: 'Commonsense reasoning about everyday situations',
+    trainingQueries: [],
+    normalization: new NormalizationRange(50, 98),
+    broadCategory: 'CONVERSATIONAL',
+    subcategories: ['PERSONAL_ADVICE'],
+    metadata: {},
+  },
+  {
+    name: 'HumanEval',
+    description: 'Code generation and programming tasks',
+    trainingQueries: [],
+    normalization: new NormalizationRange(20, 95),
+    broadCategory: 'TECHNICAL',
+    subcategories: ['CODE_TECHNICAL'],
+    metadata: {},
+  },
+  {
+    name: 'SWE-bench',
+    description: 'Real-world software engineering and debugging',
+    trainingQueries: [],
+    normalization: new NormalizationRange(5, 85),
+    broadCategory: 'TECHNICAL',
+    subcategories: ['CODE_TECHNICAL', 'DATA_SCIENCE'],
+    metadata: {},
+  },
+  {
+    name: 'TruthfulQA',
+    description: 'Truthful and accurate question answering',
+    trainingQueries: [],
+    normalization: new NormalizationRange(20, 85),
+    broadCategory: 'CONVERSATIONAL',
+    subcategories: ['PERSONAL_ADVICE'],
+    metadata: {},
+  },
+  {
+    name: 'ARC',
+    description: 'Science exam questions requiring reasoning',
+    trainingQueries: [],
+    normalization: new NormalizationRange(0, 95),
+    broadCategory: 'EDUCATIONAL',
+    subcategories: ['ACADEMIC_INSTRUCTION', 'STUDY_ASSISTANCE'],
+    metadata: {},
+  },
+  {
+    name: 'GSM8K',
+    description: 'Grade school math word problems',
+    trainingQueries: [],
+    normalization: new NormalizationRange(20, 98),
+    broadCategory: 'TECHNICAL',
+    subcategories: ['MATHEMATICAL_SCIENTIFIC'],
+    metadata: {},
+  },
+  {
+    name: 'DROP',
+    description: 'Reading comprehension requiring arithmetic and reasoning',
+    trainingQueries: [],
+    normalization: new NormalizationRange(30, 90),
+    broadCategory: 'TECHNICAL',
+    subcategories: ['MATHEMATICAL_SCIENTIFIC', 'DATA_SCIENCE'],
+    metadata: {},
+  },
+  {
+    name: 'SuperGLUE',
+    description: 'Natural language understanding tasks',
+    trainingQueries: [],
+    normalization: new NormalizationRange(40, 95),
+    broadCategory: 'BUSINESS',
+    subcategories: ['PROFESSIONAL_COMMUNICATION'],
+    metadata: {},
+  },
+  {
+    name: 'Chatbot Arena (LMSys)',
+    description: 'Human-rated conversational quality',
+    trainingQueries: [],
+    normalization: new NormalizationRange(1000, 1550),
+    broadCategory: 'CONVERSATIONAL',
+    subcategories: ['PERSONAL_ADVICE', 'RECOMMENDATIONS'],
+    metadata: {},
+  },
+  {
+    name: 'MT-Bench',
+    description: 'Multi-turn conversation and instruction following',
+    trainingQueries: [],
+    normalization: new NormalizationRange(5, 10),
+    broadCategory: 'CREATIVE',
+    subcategories: ['WRITING_LITERARY'],
+    metadata: {},
+  },
+  {
+    name: 'LiveBench',
+    description: 'Fresh, contamination-resistant evaluation tasks',
+    trainingQueries: [],
+    normalization: new NormalizationRange(0, 100),
+    broadCategory: 'TECHNICAL',
+    subcategories: ['CODE_TECHNICAL', 'MATHEMATICAL_SCIENTIFIC'],
+    metadata: {},
+  },
+];
