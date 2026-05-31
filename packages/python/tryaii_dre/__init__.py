@@ -18,6 +18,7 @@ import logging
 from tryaii_dre.benchmarks.registry import BenchmarkRegistry
 from tryaii_dre.budget import (
     DEFAULT_DIFFICULTY_GAMMA,
+    DEFAULT_DIFFICULTY_SOURCE,
     BudgetCandidate,
     BudgetedRouteResult,
     BudgetOptimizationResult,
@@ -52,6 +53,7 @@ __all__ = [
     "BudgetOptimizationResult",
     "BudgetedRouteResult",
     "DEFAULT_DIFFICULTY_GAMMA",
+    "DEFAULT_DIFFICULTY_SOURCE",
     "compute_difficulty",
     "estimate_tokens",
     "route_dataset_with_budget",

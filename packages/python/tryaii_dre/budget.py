@@ -72,6 +72,11 @@ def estimate_tokens(text: str) -> int:
 # DEFAULT_DIFFICULTY_GAMMA (budget.ts).
 DEFAULT_DIFFICULTY_GAMMA = 1.0
 
+# Which difficulty signal drives allocation: "intrinsic" (content-based easy/hard
+# centroid distance, default), "capability" (model quality vs price spread), or
+# "blend" (mean of the two). Must stay in sync with the Node SDK.
+DEFAULT_DIFFICULTY_SOURCE = "intrinsic"
+
 
 def compute_difficulty(points: list[dict]) -> float:
     """Per-prompt difficulty = capability sensitivity: how much achievable quality
@@ -370,6 +375,7 @@ def build_budget_candidates(
     prompt_index: int,
     priorities: Priorities,
     output_tokens: int,
+    difficulty_source: str = DEFAULT_DIFFICULTY_SOURCE,
 ) -> tuple[RouteResult, list[BudgetCandidate]]:
     """Route one prompt and convert every scored model to a budget candidate."""
     all_model_count = len(router.models.all_models)
@@ -392,9 +398,24 @@ def build_budget_candidates(
     # win more budget. The old `confidence` multiplier is dropped on purpose: it
     # tracked category-match clarity (often higher for easy prompts), not
     # difficulty.
-    difficulty = compute_difficulty(
+    # Pick the difficulty signal. capability = how much model choice changes
+    # quality (compute_difficulty); intrinsic = content-based easy/hard centroid
+    # distance from the classifier; blend = mean of the two. Intrinsic falls back
+    # to capability when the classifier didn't supply it (e.g. an empty centroid set).
+    capability_difficulty = compute_difficulty(
         [{"quality": score.quality_score, "cost": cost} for score, cost in priced]
     )
+    intrinsic_difficulty = (
+        route_result.classification.difficulty
+        if route_result.classification is not None
+        else capability_difficulty
+    )
+    if difficulty_source == "capability":
+        difficulty = capability_difficulty
+    elif difficulty_source == "blend":
+        difficulty = 0.5 * (capability_difficulty + intrinsic_difficulty)
+    else:
+        difficulty = intrinsic_difficulty
     # gamma is applied later in route_dataset_with_budget, AFTER batch-normalizing
     # difficulty across all prompts; here utility is just raw quality.
     candidate_inputs = [
@@ -438,6 +459,7 @@ def route_dataset_with_budget(
     output_tokens: int,
     budget_mode: str = "strict",
     difficulty_gamma: float = DEFAULT_DIFFICULTY_GAMMA,
+    difficulty_source: str = DEFAULT_DIFFICULTY_SOURCE,
     progress_callback: Optional[Callable[[int, int], None]] = None,
 ) -> tuple[list[BudgetedRouteResult], BudgetOptimizationResult]:
     """Route a dataset with a shared generation budget."""
@@ -459,6 +481,7 @@ def route_dataset_with_budget(
             idx,
             quality_priorities,
             output_tokens,
+            difficulty_source,
         )
         route_times.append(round((time.perf_counter() - started) * 1000, 2))
         route_results.append(route_result)
