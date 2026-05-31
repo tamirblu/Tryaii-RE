@@ -28,6 +28,9 @@ class BudgetCandidate:
     final_score: float
     reasoning: str
     normal_best_model: str
+    # Per-prompt difficulty in [0, 1] (capability sensitivity). Same value for
+    # every candidate of a prompt; surfaced so eval/consumers can report it.
+    difficulty: float = 0.0
 
 
 @dataclass
@@ -58,6 +61,43 @@ class BudgetedRouteResult:
 def estimate_tokens(text: str) -> int:
     """Approximate token count with a deterministic 4 chars ~= 1 token rule."""
     return max(1, math.ceil(len(text) / 4))
+
+
+# Default difficulty amplification for the budget knapsack.
+#
+# utility = quality * (1 + DEFAULT_DIFFICULTY_GAMMA * difficulty), so a maximally
+# hard prompt (difficulty = 1) counts up to (1 + gamma)x as much as an easy one in
+# the shared-budget optimization. This is the lever that makes the optimizer invest
+# more in complex prompts. Must stay in sync with the Node SDK's
+# DEFAULT_DIFFICULTY_GAMMA (budget.ts).
+DEFAULT_DIFFICULTY_GAMMA = 1.0
+
+
+def compute_difficulty(points: list[dict]) -> float:
+    """Per-prompt difficulty = capability sensitivity: how much achievable quality
+    depends on which model you pick.
+
+        difficulty = (q_top - q_cheap) / q_top      (clamped to [0, 1])
+
+      - difficulty ~ 0 -> a cheap model is about as good as the frontier -> EASY
+      - difficulty ~ 1 -> only expensive models reach the top quality     -> HARD
+
+    ``q_cheap`` is the best quality among the cheapest third of candidates (>= 1).
+    Using best-cheap vs best-overall (not min vs max) stops one junk model from
+    inflating difficulty and correctly reports EASY when a cheap-but-strong model
+    exists. Returns 0 for empty input or a non-positive ceiling. Must stay in sync
+    with the Node SDK's computeDifficulty (budget.ts).
+    """
+    if not points:
+        return 0.0
+    q_top = max(p["quality"] for p in points)
+    if not (q_top > 0):
+        return 0.0
+    by_cost = sorted(points, key=lambda p: p["cost"])
+    tier_size = max(1, len(by_cost) // 3)
+    q_cheap = max(p["quality"] for p in by_cost[:tier_size])
+    difficulty = (q_top - q_cheap) / q_top
+    return max(0.0, min(1.0, difficulty))
 
 
 def estimate_generation_cost(model, input_tokens: int, output_tokens: int) -> Optional[float]:
@@ -307,22 +347,37 @@ def build_budget_candidates(
     prompt_index: int,
     priorities: Priorities,
     output_tokens: int,
+    difficulty_gamma: float = DEFAULT_DIFFICULTY_GAMMA,
 ) -> tuple[RouteResult, list[BudgetCandidate]]:
     """Route one prompt and convert every scored model to a budget candidate."""
     all_model_count = len(router.models.all_models)
     route_result = router.route(prompt, priorities=priorities, top_k=all_model_count)
-    confidence = route_result.classification.confidence if route_result.classification else 0.0
-    confidence_factor = 0.75 + 0.25 * max(0.0, min(1.0, confidence))
     input_tokens = estimate_tokens(prompt)
 
-    candidate_inputs = []
+    # Price every model first so difficulty can be read off the (cost, quality)
+    # spread before utilities are assigned.
+    priced = []
     for score in route_result.scores:
         model = router.models.get_model(score.model_id)
         estimated_cost = estimate_generation_cost(model, input_tokens, output_tokens)
         if estimated_cost is None or not math.isfinite(estimated_cost):
             continue
-        utility = score.quality_score * confidence_factor
-        candidate_inputs.append((score, estimated_cost, utility))
+        priced.append((score, estimated_cost))
+
+    # Difficulty = capability sensitivity (see compute_difficulty). The factor
+    # scales every candidate of THIS prompt equally, so it only raises the
+    # prompt's weight in the cross-prompt knapsack -- which is how harder prompts
+    # win more budget. The old `confidence` multiplier is dropped on purpose: it
+    # tracked category-match clarity (often higher for easy prompts), not
+    # difficulty.
+    difficulty = compute_difficulty(
+        [{"quality": score.quality_score, "cost": cost} for score, cost in priced]
+    )
+    difficulty_factor = 1.0 + difficulty_gamma * difficulty
+
+    candidate_inputs = [
+        (score, cost, score.quality_score * difficulty_factor) for score, cost in priced
+    ]
 
     # Tie-break: highest utility, then lowest cost, then smallest modelId
     # (Unicode code point order). Using min over negated utility keeps the
@@ -347,6 +402,7 @@ def build_budget_candidates(
                 final_score=score.final_score,
                 reasoning=score.reasoning,
                 normal_best_model=quality_best_model,
+                difficulty=difficulty,
             )
         )
     return route_result, candidates
@@ -359,6 +415,7 @@ def route_dataset_with_budget(
     max_price: float,
     output_tokens: int,
     budget_mode: str = "strict",
+    difficulty_gamma: float = DEFAULT_DIFFICULTY_GAMMA,
     progress_callback: Optional[Callable[[int, int], None]] = None,
 ) -> tuple[list[BudgetedRouteResult], BudgetOptimizationResult]:
     """Route a dataset with a shared generation budget."""
@@ -380,6 +437,7 @@ def route_dataset_with_budget(
             idx,
             quality_priorities,
             output_tokens,
+            difficulty_gamma,
         )
         route_times.append(round((time.perf_counter() - started) * 1000, 2))
         route_results.append(route_result)

@@ -1,4 +1,8 @@
-from tryaii_dre.budget import BudgetCandidate, optimize_budget_candidates
+from tryaii_dre.budget import (
+    BudgetCandidate,
+    compute_difficulty,
+    optimize_budget_candidates,
+)
 
 
 def candidate(prompt_index: int, model_id: str, utility: float, cost: float) -> BudgetCandidate:
@@ -46,3 +50,41 @@ def test_optimizer_reports_infeasible_when_cheapest_exceeds_budget():
 
     assert result.status == "infeasible"
     assert result.minimum_required_budget == 0.008
+
+
+def test_compute_difficulty_low_when_models_agree():
+    d = compute_difficulty(
+        [
+            {"quality": 0.95, "cost": 0.0001},
+            {"quality": 0.94, "cost": 0.001},
+            {"quality": 0.96, "cost": 0.05},
+        ]
+    )
+    assert d < 0.1
+
+
+def test_compute_difficulty_high_when_only_expensive_models_win():
+    d = compute_difficulty(
+        [
+            {"quality": 0.2, "cost": 0.0001},
+            {"quality": 0.25, "cost": 0.0005},
+            {"quality": 0.85, "cost": 0.05},
+        ]
+    )
+    assert d > 0.5
+
+
+def test_compute_difficulty_low_when_cheap_model_is_strong():
+    d = compute_difficulty(
+        [
+            {"quality": 0.9, "cost": 0.0001},  # cheap AND strong
+            {"quality": 0.92, "cost": 0.05},
+            {"quality": 0.3, "cost": 0.0002},
+        ]
+    )
+    assert d < 0.1
+
+
+def test_compute_difficulty_zero_for_empty_or_zero_ceiling():
+    assert compute_difficulty([]) == 0.0
+    assert compute_difficulty([{"quality": 0.0, "cost": 1.0}]) == 0.0
