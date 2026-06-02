@@ -36,7 +36,7 @@ from tryaii_dre.scoring.priorities import DEFAULT_PRIORITIES, Priorities
 # configures handlers. Done after imports to keep module-level imports at top.
 logging.getLogger("tryaii_dre").addHandler(logging.NullHandler())
 
-__version__ = "0.2.1"
+__version__ = "0.2.2"
 
 __all__ = [
     "Router",
